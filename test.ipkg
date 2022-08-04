@@ -1,0 +1,9 @@
+package stt-test
+authors = "alrunner4@gmail.com"
+sourcedir = "test"
+depends = stt
+--modules = TestSTT
+
+-- main file (i.e. file to load at REPL)
+main = TestSTT
+executable = stt-test
