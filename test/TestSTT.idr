@@ -5,11 +5,12 @@ import Data.List
 prompt: HasIO m => String -> m String
 prompt text = putStrLn text >> putStr " > " >> getLine
 
-run_stt_in: (m: Type -> Type) -> ({s: _} -> STT m s a) -> m a
-run_stt_in m = runSTT {m}
+%inline
+runSTT_in: (m: Type -> Type) -> ({s: _} -> STT m s a) -> m a
+runSTT_in m = runSTT {m}
 
 main: IO ()
-main = run_stt_in IO $ do
+main = runSTT_in IO $ do
    name <- prompt "Who goes there?"
    x <- newSTTRef name
    num <- prompt "Oughtn't there be a number here, too?"
