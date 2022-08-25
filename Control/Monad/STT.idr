@@ -2,11 +2,11 @@
 module Control.Monad.STT
 import Data.IOArray
 import Data.IORef
-
-import Data.IOArray
-import Data.IORef
+import Data.Ref
 
 %hide Prelude.Types.elem
+%hide Control.Monad.ST.ST
+%hide Control.Monad.ST.STRef
 
 %default total
 
@@ -94,6 +94,12 @@ modifySTRef: STRef s a -> (a -> a) -> ST s ()
 modifySTRef ref f
     = do val <- readSTRef ref
          writeSTRef ref (f val)
+
+export
+Ref (ST s) (STRef s) where
+   newRef = newSTRef
+   readRef = readSTRef
+   writeRef = writeSTRef
 
 %inline
 export
