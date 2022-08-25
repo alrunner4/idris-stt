@@ -10,17 +10,19 @@ import Data.IORef
 
 %default total
 
+export STThread: Type; STThread = Type
+
 ||| A mutable reference, bound to a state thread.
 |||
-||| A value of type `STRef s a` contains a mutable `a`, bound to a "thread" `s`. Any
-||| access to the reference must occur in an `ST s` monad with the same "thread".
+||| A value of type `STRef s a` contains a mutable `a`, bound to `STThread` `s`. Any
+||| access to the reference must occur in an `ST s` monad with the same thread.
 export
-data STRef: Type -> Type -> Type where
+data STRef: STThread -> Type -> Type where
    MkSTRef: IORef a -> STRef s a
 
 ||| An array of mutable references, bound to a state thread.
 export
-data STArray: Type -> Type -> Type where
+data STArray: STThread -> Type -> Type where
    MkSTArray: IOArray a -> STArray s a
 
 ||| The `ST` monad allows for mutable access to references, but unlike `IO`, it is safely
@@ -29,7 +31,7 @@ data STArray: Type -> Type -> Type where
 ||| The parameter `s` is an opaque "thread variable" that ensures mutable references
 ||| cannot be shared between threads. 
 export
-data ST: Type -> Type -> Type where
+data ST: STThread -> Type -> Type where
    MkST: IO a -> ST s a
 
 ||| Run an `ST` computation.
@@ -113,17 +115,17 @@ modifySTArray arr i f
 |||
 ||| `STT s m a` is an operation on the state thread `s` in `Monad m` with result `a`.
 export
-data STT: (Type -> Type) -> Type -> Type -> Type where
+data STT: (Type -> Type) -> STThread -> Type -> Type where
    MkSTT: IO a -> (a -> m b) -> STT m s b
 
 ||| `STTRef s a` is the type of mutable references in state thread `s`.
 export
-data STTRef: Type -> Type -> Type where
+data STTRef: STThread -> Type -> Type where
    MkSTTRef: IORef a -> STTRef s a
 
 ||| `STTArray s a` is the type of mutable array references in state thread `s`.
 export
-data STTArray: Type -> Type -> Type where
+data STTArray: STThread -> Type -> Type where
    MkSTTArray: IOArray a -> STTArray s a
 
 ||| `runSTT op` creates a state thread and uses it to evaluate the mutable computation
@@ -132,10 +134,10 @@ export runSTT: ({s: _} -> STT m s a) -> m a
 runSTT p = let MkSTT st act = p {s = ()} in act (unsafePerformIO st)
 
 public export
-interface MonadST (m: Type -> Type -> Type) where
+interface Monad (m s) => MonadST (0 m: STThread -> Type -> Type) (0 s: STThread) where
    constructor MkMonadST
-   VarRef: Type -> Type -> Type
-   ArrayRef: Type -> Type -> Type
+   VarRef: STThread -> Type -> Type
+   ArrayRef: STThread -> Type -> Type
    newSTTRef: a -> m s (VarRef s a)
    readSTTRef:  VarRef s a -> m s a
    writeSTTRef: VarRef s a -> a -> m s ()
@@ -154,14 +156,14 @@ Applicative m => Applicative (STT m s) where
       f (unsafePerformIO st1) <*> x (unsafePerformIO st2)
 
 export
-{s: _} -> Monad m => Monad (STT m s) where
+Monad m => Monad (STT m s) where
    MkSTT stt1 act >>= f = MkSTT stt1 $ \u1 => do
       r1 <- act u1
       let MkSTT stt2 act2 = f r1
       act2 (unsafePerformIO stt2)
 
 export
-{m: _} -> Monad m => MonadST (STT m) where
+Monad m => MonadST (STT m) s where
    VarRef = STTRef
    ArrayRef = STTArray
    newSTTRef = \x => MkSTT (newIORef x) (pure . MkSTTRef)
@@ -172,5 +174,5 @@ export
    writeSTTArray = \(MkSTTArray r), i, x => MkSTT (writeArray r i x) pure
 
 export
-{s: _} -> HasIO m => HasIO (STT m s) where
+HasIO m => HasIO (STT m s) where
    liftIO a = MkSTT (pure ()) (const (liftIO a))

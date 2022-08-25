@@ -4,13 +4,13 @@ import Control.Monad.STT
 import Control.Monad.Maybe
 import Control.Monad.Trans
 
-data FibCache: (stt: STThread -> Type -> Type) -> (s: STThread) -> Type where
-   FibCacheSized:
-      {stt: _} -> {s: _} -> {mst: MonadST stt s} ->
-      Int -> ArrayRef @{mst} s Integer ->
-      FibCache stt s
+record FibCache (stt: STThread -> Type -> Type) (s: STThread) where
+   constructor FibCacheSized
+   {mst: MonadST stt s}
+   cacheSize: Int
+   cache: ArrayRef @{mst} s Integer
 
-newFibCache: {stt: _} -> {s: _} -> MonadST stt s => Int -> stt s (FibCache stt s)
+newFibCache: MonadST stt s => Int -> stt s (FibCache stt s)
 newFibCache n = FibCacheSized n <$> newSTTArray n
 
 (.fib): FibCache stt s -> Int -> stt s (Maybe Integer)
@@ -30,6 +30,6 @@ newFibCache n = FibCacheSized n <$> newSTTArray n
 
 main: IO ()
 main = runSTT {m = IO}$ do
-   fc <- newFibCache 100
-   printLn !(fc.fib 10)
+   fc <- newFibCache 43
+   printLn !(fc.fib 42)
 
