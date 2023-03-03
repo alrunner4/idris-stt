@@ -1,5 +1,6 @@
 -- vim: tw=90 cc=91 shiftwidth=3
 module Control.Monad.STT
+import Control.Monad.Trans
 import Data.IOArray
 import Data.IORef
 import Data.Ref
@@ -121,17 +122,17 @@ modifySTArray arr i f
 |||
 ||| `STT s m a` is an operation on the state thread `s` in `Monad m` with result `a`.
 export
-data STT: (Type -> Type) -> STThread -> Type -> Type where
+data STT: (Type -> Type) -> (0 _: STThread) -> Type -> Type where
    MkSTT: IO a -> (a -> m b) -> STT m s b
 
 ||| `STTRef s a` is the type of mutable references in state thread `s`.
 export
-data STTRef: STThread -> Type -> Type where
+data STTRef: (0 _: STThread) -> Type -> Type where
    MkSTTRef: IORef a -> STTRef s a
 
 ||| `STTArray s a` is the type of mutable array references in state thread `s`.
 export
-data STTArray: STThread -> Type -> Type where
+data STTArray: (0 _: STThread) -> Type -> Type where
    MkSTTArray: IOArray a -> STTArray s a
 
 ||| `runSTT op` creates a state thread and uses it to evaluate the mutable computation
@@ -140,16 +141,16 @@ export runSTT: ({s: _} -> STT m s a) -> m a
 runSTT p = let MkSTT st act = p {s = ()} in act (unsafePerformIO st)
 
 public export
-interface Monad (m s) => MonadST (0 m: STThread -> Type -> Type) (0 s: STThread) where
+interface Monad (m s) => MonadST (0 m: (0 _: STThread) -> Type -> Type) (0 s: STThread) where
    constructor MkMonadST
-   VarRef: STThread -> Type -> Type
-   ArrayRef: STThread -> Type -> Type
-   newSTTRef: a -> m s (VarRef s a)
-   readSTTRef:  VarRef s a -> m s a
-   writeSTTRef: VarRef s a -> a -> m s ()
-   newSTTArray: Int -> m s (ArrayRef s a)
-   readSTTArray:  ArrayRef s a -> Int -> m s (Maybe a)
-   writeSTTArray: ArrayRef s a -> Int -> a -> m s Bool
+   VarRef: Type -> Type
+   ArrayRef: Type -> Type
+   newSTTRef: a -> m s (VarRef a)
+   readSTTRef:  VarRef a -> m s a
+   writeSTTRef: VarRef a -> a -> m s ()
+   newSTTArray: Int -> m s (ArrayRef a)
+   readSTTArray:  ArrayRef a -> Int -> m s (Maybe a)
+   writeSTTArray: ArrayRef a -> Int -> a -> m s Bool
 
 export
 Functor m => Functor (STT m s) where
@@ -170,8 +171,8 @@ Monad m => Monad (STT m s) where
 
 export
 Monad m => MonadST (STT m) s where
-   VarRef = STTRef
-   ArrayRef = STTArray
+   VarRef = STTRef s
+   ArrayRef = STTArray s
    newSTTRef = \x => MkSTT (newIORef x) (pure . MkSTTRef)
    readSTTRef = \(MkSTTRef r)=> MkSTT (readIORef r) pure
    writeSTTRef = \(MkSTTRef r), x => MkSTT (writeIORef r x) pure
@@ -182,3 +183,7 @@ Monad m => MonadST (STT m) s where
 export
 HasIO m => HasIO (STT m s) where
    liftIO a = MkSTT (pure ()) (const (liftIO a))
+
+export
+{s: _} -> Monad m => MonadTrans (\m => STT m s) where
+   lift inner =  MkSTT (pure ()) (const inner)
