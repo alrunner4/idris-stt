@@ -1,10 +1,10 @@
 {
-nixpkgs ? import <nixpkgs> {},
+idrx ? builtins.getFlake "github:alrunner4/idrx",
 withSource ? false,
 }:
-(nixpkgs.idris2Packages.buildIdris {
-    ipkgName = "stt";
-    version = "2025.12.08";
-    src = ./.;
-    idrisLibraries = [];
-}).library { inherit withSource; }
+idrx.importFromSrc {
+  ipkgName = "stt";
+  version = "2025.12.08";
+  src = ./.;
+  idrisLibraries = [];
+}
